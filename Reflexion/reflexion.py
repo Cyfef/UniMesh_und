@@ -18,7 +18,6 @@ def Caption_Reflexion(rp:ReflexionParams):
 
                        agent_prompt=cot_agent_prompt if rp.strategy == ReflexionStrategy.NONE else cot_reflect_agent_prompt,
                        reflect_prompt=cot_reflect_prompt,
-
                        cot_examples=COT,
                        reflect_examples=COT_REFLECT,
 
@@ -46,9 +45,6 @@ def Caption_Reflexion(rp:ReflexionParams):
     with open(log_path, 'w') as f:
         f.write(log)
     save_agents(agents, agents_path)
-
-
-
 
 
 if __name__ == "__main__" :

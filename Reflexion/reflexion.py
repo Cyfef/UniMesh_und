@@ -56,5 +56,5 @@ if __name__ == "__main__" :
     parser = ArgumentParser(description="Reflexion params")
     rp=ReflexionParams(parser)      
 
-    print("Running Reflexion...")
+    print("Run Captioning...")
     Caption_Reflexion(rp=rp)

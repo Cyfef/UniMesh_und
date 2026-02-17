@@ -50,13 +50,13 @@ class CoTAgent:
         self.Evaluator = eva_llm                    #Evaluator
         self.Self_reflection = self_reflect_llm     #Self-reflection
         
-        self.reflections: List[str] = []
+        self.reflections = []
         self.reflections_str = ''
         
     
         self.caption=''                             #final caption outcome
     
-        self.step_n: int = 0                        #number of iter
+        self.step_n = 0                        #number of iter
         self.reset()
     
     @staticmethod

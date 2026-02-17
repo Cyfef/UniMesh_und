@@ -7,12 +7,11 @@ from PIL import Image
 from accelerate import infer_auto_device_map, load_checkpoint_and_dispatch, init_empty_weights
 
 from data.transforms import ImageTransform
-from data.data_utils import pil_img2rgb, add_special_tokens
+from data.data_utils import add_special_tokens
 from modeling.bagel import (
     BagelConfig, Bagel, Qwen2Config, Qwen2ForCausalLM, SiglipVisionConfig, SiglipVisionModel
 )
 from modeling.qwen2 import Qwen2Tokenizer
-from modeling.bagel.qwen2_navit import NaiveCache
 from modeling.autoencoder import load_ae
 from inferencer import InterleaveInferencer
 
@@ -111,16 +110,6 @@ print('Model loaded')
 
 
 #-----------------------Inferencer Preparing-----------------------#
-
-inferencer = InterleaveInferencer(
-    model=model, 
-    vae_model=vae_model, 
-    tokenizer=tokenizer, 
-    vae_transform=vae_transform, 
-    vit_transform=vit_transform, 
-    new_token_ids=new_token_ids
-)
-
 seed = 42
 random.seed(seed)
 np.random.seed(seed)
@@ -130,6 +119,34 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
+
+
+BagelActor=InterleaveInferencer(
+    model=model, 
+    vae_model=vae_model, 
+    tokenizer=tokenizer, 
+    vae_transform=vae_transform, 
+    vit_transform=vit_transform, 
+    new_token_ids=new_token_ids
+)
+
+BagelEvaluator=InterleaveInferencer(
+    model=model, 
+    vae_model=vae_model, 
+    tokenizer=tokenizer, 
+    vae_transform=vae_transform, 
+    vit_transform=vit_transform, 
+    new_token_ids=new_token_ids
+)
+
+BagelSelfReflection=InterleaveInferencer(
+    model=model, 
+    vae_model=vae_model, 
+    tokenizer=tokenizer, 
+    vae_transform=vae_transform, 
+    vit_transform=vit_transform, 
+    new_token_ids=new_token_ids
+)
 
 #-----------------------Understanding-----------------------#
 
@@ -147,6 +164,15 @@ print(output_dict['text'])
 
 
 
+
+input_list = [
+    Image.open('1.jpg'),
+    Image.open('2.jpg'),
+    "A man <img><|image_1|></img> and a woman <img><|image_2|></img> are running on the forest."
+]
+
+output_dict = inferencer.interleave_inference(input_lists=input_list, **inference_hyper)
+display(output_dict[0])
 
 
 

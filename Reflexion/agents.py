@@ -5,9 +5,10 @@ import pickle
 from typing import List, Union, Literal
 from enum import Enum
 from langchain.prompts import PromptTemplate
-from prompts import reflect_prompt, REFLECTION_HEADER, LAST_TRIAL_HEADER, REFLECTION_AFTER_LAST_TRIAL_HEADER
-from prompts import cot_agent_prompt, cot_reflect_agent_prompt, cot_reflect_prompt, COT_INSTRUCTION, COT_REFLECT_INSTRUCTION
-from fewshots import WEBTHINK_SIMPLE6, REFLECTIONS, COT, COT_REFLECT
+from prompts import REFLECTION_HEADER, LAST_TRIAL_HEADER, REFLECTION_AFTER_LAST_TRIAL_HEADER
+from prompts import cot_reflect_agent_prompt, cot_reflect_prompt
+from fewshots import COT, COT_REFLECT
+from LMs.Bagel import BagelActor,BagelEvaluator,BagelSelfReflection,InterleaveInferencer
 
 class ReflexionStrategy(Enum):
     """
@@ -26,7 +27,7 @@ class CoTAgent:
     CoTAgent for 3D object captioning
     '''
     def __init__(self,
-                 prompt: str,
+                 prompt:str,
                  obj_path:str,
 
                  agent_prompt: PromptTemplate = cot_reflect_agent_prompt,
@@ -34,8 +35,9 @@ class CoTAgent:
                  cot_examples: str = COT,
                  reflect_examples: str = COT_REFLECT,
 
-                 self_reflect_llm: ,
-                 action_llm: ,
+                 actor_lm:InterleaveInferencer=BagelActor,
+                 evaluator_lm:InterleaveInferencer=BagelEvaluator,
+                 self_reflection_lm:InterleaveInferencer=BagelSelfReflection,
                  ) -> None:
         self.prompt = prompt                    #prompt for captioning
         self.imgs_path = self.diffurank_select(obj_path)      #rendered imgs of obj to be captioned
@@ -45,15 +47,14 @@ class CoTAgent:
         self.cot_examples = cot_examples            #COT examples
         self.reflect_examples = reflect_examples
         
-        
-        self.Actor = action_llm                     #Actor
-        self.Evaluator = eva_llm                    #Evaluator
-        self.Self_reflection = self_reflect_llm     #Self-reflection
+        self.Actor = actor_lm                     #Actor
+        self.Evaluator = evaluator_lm                    #Evaluator
+        self.Self_reflection = self_reflection_lm     #Self-reflection
         
         self.reflections = []
         self.reflections_str = ''
         
-    
+        self.captions_list=[]
         self.caption=''                             #final caption outcome
     
         self.step_n = 0                        #number of iter
@@ -73,7 +74,6 @@ class CoTAgent:
         indices = [idx for idx, _ in lowest_six]
         imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices]
         return imgs_path
-
 
     def run(self,
             reflexion_strategy: ReflexionStrategy = ReflexionStrategy.REFLEXION) -> None:

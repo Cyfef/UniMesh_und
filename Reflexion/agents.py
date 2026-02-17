@@ -29,6 +29,7 @@ class CoTAgent:
     def __init__(self,
                  prompt:str,
                  obj_path:str,
+                 obj_name:str,
 
                  agent_prompt: PromptTemplate = cot_reflect_agent_prompt,
                  reflect_prompt: PromptTemplate = cot_reflect_prompt,
@@ -41,6 +42,7 @@ class CoTAgent:
                  ) -> None:
         self.prompt = prompt                    #prompt for captioning
         self.imgs_path = self.diffurank_select(obj_path)      #rendered imgs of obj to be captioned
+        self.obj_name=obj_name            #name of the object to be captioned
     
         self.agent_prompt = agent_prompt            #
         self.reflect_prompt = reflect_prompt        #

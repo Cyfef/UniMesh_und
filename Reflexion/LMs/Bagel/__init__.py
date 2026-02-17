@@ -174,8 +174,3 @@ input_list = [
 output_dict = inferencer.interleave_inference(input_lists=input_list, **inference_hyper)
 display(output_dict[0])
 
-
-
-
-
-#-----------------------Model Initialization-----------------------#

@@ -1,5 +1,6 @@
 import os
 import datetime
+import pickle
 
 from argparse import ArgumentParser
 from agents import CoTAgent, ReflexionStrategy
@@ -15,6 +16,7 @@ def Caption_Reflexion(rp:ReflexionParams):
     '''
     agents = [CoTAgent(prompt=rp.prompt,
                        obj_path=os.path.join(rp.objs_dir,obj_name),
+                       obj_name=obj_name,
 
                        agent_prompt=cot_agent_prompt if rp.strategy == ReflexionStrategy.NONE else cot_reflect_agent_prompt,
                        reflect_prompt=cot_reflect_prompt,
@@ -32,6 +34,7 @@ def Caption_Reflexion(rp:ReflexionParams):
         correct, incorrect = summarize_trial(agents)
         print(f'Finished Trial {trial}, Correct: {len(correct)}, Incorrect: {len(incorrect)}')
     
+    # save logs and agents
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     
     log_filename = f"{len(agents)}_objects_{rp.n}_trials_{timestamp}.txt"
@@ -44,7 +47,23 @@ def Caption_Reflexion(rp:ReflexionParams):
 
     with open(log_path, 'w') as f:
         f.write(log)
+    print("Logs saved")
     save_agents(agents, agents_path)
+    print("Agents saved")
+
+    # save all the captions
+    captions_dict={}
+    for agent in agents:
+        captions_dict[agent.obj_name]=agent.caption
+    
+    captions_filename=f"{len(agents)}_objects_{timestamp}.pkl"
+    captions_path=os.path.join(rp.save_dir,rp.strategy.value,captions_filename)
+
+    os.makedirs(os.path.dirname(captions_path), exist_ok=True)
+
+    with open(captions_path, 'wb') as f:  
+        pickle.dump(captions_dict, f)
+    print("Captions saved")
 
 
 if __name__ == "__main__" :

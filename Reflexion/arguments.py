@@ -30,10 +30,11 @@ CAPTION_PROMPT=""
 class ReflexionParams(ParamGroup): 
     '''Reflexion Parameters Group'''
     def __init__(self, parser):
-        self.prompt:str=CAPTION_PROMPT,  
-        self.n:int=3,
-        self.strategy:ReflexionStrategy=ReflexionStrategy.LAST_ATTEMPT_AND_REFLEXION,
+        self.prompt:str=CAPTION_PROMPT
+        self.n:int=3
+        self.strategy:ReflexionStrategy=ReflexionStrategy.LAST_ATTEMPT_AND_REFLEXION
         self.objs_dir:str=""
+        self.save_dir:str="../Captions"
           
         super().__init__(parser, "Reflexion Parameters")
 

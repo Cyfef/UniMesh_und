@@ -62,6 +62,9 @@ Trial summary: Correct: {len(correct)}, Incorrect: {len(incorrect)}, Halted: {le
     return log
 
 def save_agents(agents, dir: str):
+    '''
+    save the final agents
+    '''
     os.makedirs(dir, exist_ok=True)
     for i, agent in enumerate(agents):
         joblib.dump(agent, os.path.join(dir, f'{i}.joblib'))

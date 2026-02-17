@@ -158,9 +158,9 @@ class CoTAgent:
 
     def is_correct(self) -> bool:
         '''
-        
+        return whether the agent gives the right answer
         '''
-        return EM(self.answer, self.key)   
+        return    
     
 
 

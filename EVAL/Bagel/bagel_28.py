@@ -121,25 +121,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 
-BagelActor=InterleaveInferencer(
-    model=model, 
-    vae_model=vae_model, 
-    tokenizer=tokenizer, 
-    vae_transform=vae_transform, 
-    vit_transform=vit_transform, 
-    new_token_ids=new_token_ids
-)
-
-BagelEvaluator=InterleaveInferencer(
-    model=model, 
-    vae_model=vae_model, 
-    tokenizer=tokenizer, 
-    vae_transform=vae_transform, 
-    vit_transform=vit_transform, 
-    new_token_ids=new_token_ids
-)
-
-BagelSelfReflection=InterleaveInferencer(
+inference=InterleaveInferencer(
     model=model, 
     vae_model=vae_model, 
     tokenizer=tokenizer, 
@@ -156,21 +138,44 @@ inference_hyper=dict(
     # text_temperature=0.3,
 )
 
-image = Image.open('test_images/meme.jpg')
-prompt = "Can someone explain what’s funny about this meme??"
+# caption dict
+import pickle
 
-output_dict = inferencer(image=image, text=prompt, understanding_output=True, **inference_hyper)
-print(output_dict['text'])
+captions_dict_path="../../Captions/Bagel_28.pkl"
 
+# 28 imgs run
+prompt=""
+objs_dir=""
 
+for obj_name in os.listdir(objs_dir):
+    with open(captions_dict_path, 'rb') as f:
+        captions_dict = pickle.load(f)
 
+    if captions_dict == None:
+        captions_dict={}
 
-input_list = [
-    Image.open('1.jpg'),
-    Image.open('2.jpg'),
-    "A man <img><|image_1|></img> and a woman <img><|image_2|></img> are running on the forest."
-]
+    if obj_name in list(captions_dict.keys()):
+        continue
 
-output_dict = inferencer.interleave_inference(input_lists=input_list, **inference_hyper)
-display(output_dict[0])
+    obj_path=os.path.join(objs_dir,obj_name)
 
+    imgs_list=[]
+    for i in range(27):
+        img_path=os.path.join(obj_path,f"{i:05}.png")
+        imgs_list.append(Image.open(img_path))
+
+    input_list=imgs_list+[prompt]
+
+    output_list=inference.interleave_inference(input_lists=input_list,
+                                   understanding_output=True,
+                                   max_think_token_n=1000,
+                                   do_sample=False,
+                                   # text_temperature=0.3,
+                                   )
+    print(f"obj {len(captions_dict)+1}:")
+    print(output_list[0])
+
+    captions_dict[obj_name]=output_list[0]
+
+    with open(captions_dict_path, 'wb') as F:  
+        pickle.dump(captions_dict, F)

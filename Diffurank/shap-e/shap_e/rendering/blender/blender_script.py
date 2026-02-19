@@ -15,7 +15,7 @@ import sys
 import bpy
 from mathutils import Vector
 from mathutils.noise import random_unit_vector
-from IPython import embed
+#from IPython import embed
 
 MAX_DEPTH = 5.0
 FORMAT_VERSION = 6

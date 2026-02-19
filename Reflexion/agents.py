@@ -74,7 +74,7 @@ class CoTAgent:
         indexed.sort(key=lambda x: x[1])
         lowest_six = indexed[:6]
         indices = [idx for idx, _ in lowest_six]
-        imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices]
+        imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices].reverse()
         return imgs_path
 
     def run(self,

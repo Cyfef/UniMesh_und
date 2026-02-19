@@ -4,6 +4,10 @@ from typing import Iterator, Optional, Union
 
 import blobfile as bf
 import numpy as np
+
+import os
+os.environ['BLENDER_PATH'] = r'H:\data\Diffurank\blender-3.4.1-windows-x64\blender.exe'
+
 import torch
 from PIL import Image
 
@@ -170,8 +174,10 @@ def load_or_create_multiview(
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = bf.join(tmp_dir, "out.zip")
+        tmp_path = os.path.abspath(os.path.join(tmp_dir, "out.zip"))
+        #tmp_path = bf.join(tmp_dir, "out.zip")
         if mesh_path is not None:
+            mesh_path = os.path.abspath(mesh_path)
             mesh = TriMesh.load(mesh_path)
             render_mesh(
                 mesh=mesh,
@@ -181,6 +187,7 @@ def load_or_create_multiview(
                 **common_kwargs,
             )
         elif model_path is not None:
+            model_path = os.path.abspath(model_path)
             render_model(
                 model_path,
                 output_path=tmp_path,

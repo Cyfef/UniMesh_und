@@ -35,7 +35,7 @@ class ReflexionParams(ParamGroup):
         self.prompt:str=CAPTION_PROMPT
         self.n:int=3
         self.strategy:ReflexionStrategy=ReflexionStrategy.LAST_ATTEMPT_AND_REFLEXION
-        self.objs_dir:str=TODO
+        self.objs_dir:str="../data/Cap3D_imgs"
         self.save_dir:str="../Captions"
           
         super().__init__(parser, "Reflexion Parameters")

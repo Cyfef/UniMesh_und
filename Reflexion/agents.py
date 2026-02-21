@@ -1,13 +1,16 @@
-import re, string, os
+import re,os
 import tiktoken
 import pickle
 
-from typing import List, Union, Literal
+from typing import List
 from enum import Enum
+from PIL import Image
 from langchain.prompts import PromptTemplate
+
 from prompts import REFLECTION_HEADER, LAST_TRIAL_HEADER, REFLECTION_AFTER_LAST_TRIAL_HEADER
-from prompts import cot_reflect_agent_prompt, cot_reflect_prompt
+from prompts import cot_reflect_agent_prompt1, cot_reflect_agent_prompt2, cot_reflect_prompt1, cot_reflect_prompt2
 from fewshots import COT, COT_REFLECT
+
 from LMs.Bagel import BagelActor,BagelEvaluator,BagelSelfReflection,InterleaveInferencer
 
 class ReflexionStrategy(Enum):
@@ -31,8 +34,9 @@ class CoTAgent:
                  obj_path:str,
                  obj_name:str,
 
-                 agent_prompt: PromptTemplate = cot_reflect_agent_prompt,
-                 reflect_prompt: PromptTemplate = cot_reflect_prompt,
+                 agent_prompts: List[PromptTemplate] = [cot_reflect_agent_prompt1, cot_reflect_agent_prompt2],
+                 reflect_prompts: List[PromptTemplate] = [cot_reflect_prompt1, cot_reflect_prompt2],
+                 
                  cot_examples: str = COT,
                  reflect_examples: str = COT_REFLECT,
 
@@ -42,10 +46,12 @@ class CoTAgent:
                  ) -> None:
         self.prompt = prompt                    #prompt for captioning
         self.imgs_path = self.diffurank_select(obj_path)      #rendered imgs of obj to be captioned
+        self.imgs_list=[Image.open(img_path) for img_path in self.imgs_path]
         self.obj_name=obj_name            #name of the object to be captioned
     
-        self.agent_prompt = agent_prompt            #
-        self.reflect_prompt = reflect_prompt        #
+        self.agent_prompts = agent_prompts            #
+        self.reflect_prompts = reflect_prompts        #
+
         self.cot_examples = cot_examples            #COT examples
         self.reflect_examples = reflect_examples
         
@@ -57,28 +63,32 @@ class CoTAgent:
         self.reflections_str = ''
         
         self.captions_list=[]
-        self.caption=''                             #final caption outcome
+        self.answer=''
+        self.correct="INCORRECT"                            
     
         self.step_n = 0                        #number of iter
         self.reset()
     
-    @staticmethod
+    @staticmethod    
     def diffurank_select(obj_path):
         '''
         select 6 imgs based on diffurank scores
         '''
-        diffu_scores_path=os.path.join(obj_path,"diffurank_scores.pkl")
-        with open(diffu_scores_path, 'rb') as f:
-            diffu_scores = pickle.load(f)
+        diffu_path = os.path.join(obj_path, "diffurank_scores.pkl")
+        with open(diffu_path, 'rb') as f:
+            diffu_scores = pickle.load(f)     # numpy array
+
         indexed = list(enumerate(diffu_scores))
         indexed.sort(key=lambda x: x[1])
+        
         lowest_six = indexed[:6]
-        indices = [idx for idx, _ in lowest_six]
-        imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices].reverse()
+        indices = [idx for idx, val in lowest_six][::-1] 
+
+        imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices] 
+        
         return imgs_path
 
-    def run(self,
-            reflexion_strategy: ReflexionStrategy = ReflexionStrategy.REFLEXION) -> None:
+    def run(self,reflexion_strategy: ReflexionStrategy = ReflexionStrategy.REFLEXION) -> None:
         if self.step_n > 0 and not self.is_correct() and reflexion_strategy != ReflexionStrategy.NONE:
             self.reflect(reflexion_strategy)
         self.reset()
@@ -88,12 +98,12 @@ class CoTAgent:
     def step(self) -> None:
         # Think
         self.scratchpad += f'\nThought:'
-        self.scratchpad += ' ' + self.prompt_agent()
+        self.scratchpad += ' ' + self._Actor()
         print(self.scratchpad.split('\n')[-1])
 
         # Act
         self.scratchpad += f'\nAction:'
-        action = self.prompt_agent()
+        action = self._Actor()
         self.scratchpad += ' ' + action
         action_type, argument = parse_action(action)
         print(self.scratchpad.split('\n')[-1])  
@@ -101,6 +111,9 @@ class CoTAgent:
         self.scratchpad += f'\nObservation: '
         if action_type == 'Finish':
             self.answer = argument
+            print(f"Object {self.obj_name}: {self.answer}")
+            self.captions_list.append(self.answer)
+            self._Evaluator()
             if self.is_correct():
                 self.scratchpad += 'Answer is CORRECT'
             else: 
@@ -110,50 +123,75 @@ class CoTAgent:
         else:
             print('Invalid action type, please try again.')
     
-    def reflect(self,
-                strategy: ReflexionStrategy) -> None:
+    def reflect(self,strategy: ReflexionStrategy) -> None:
         '''
         self-reflect with strategy
         '''
         print('Running Reflexion strategy...')
         if strategy == ReflexionStrategy.LAST_ATTEMPT:
             self.reflections = [self.scratchpad]
-            self.reflections_str = format_last_attempt(self.question , self.reflections[0])
+            self.reflections_str = format_last_attempt(self.prompt , self.reflections[0])
         elif strategy == ReflexionStrategy.REFLEXION:
-            self.reflections += [self.prompt_reflection()]
+            self.reflections += [self._Reflection()]
             self.reflections_str = format_reflections(self.reflections)
         elif strategy == ReflexionStrategy.LAST_ATTEMPT_AND_REFLEXION:
-            self.reflections_str = format_last_attempt(self.question , self.scratchpad)
-            self.reflections = [self.prompt_reflection()]
+            self.reflections_str = format_last_attempt(self.prompt , self.scratchpad)
+            self.reflections = [self._Reflection()]
             self.reflections_str += '\n'+ format_reflections(self.reflections, header = REFLECTION_AFTER_LAST_TRIAL_HEADER)
         else:
             raise NotImplementedError(f'Unknown reflection strategy: {strategy}')
         print(self.reflections_str)
     
-    def prompt_reflection(self) -> str:
-        return format_step(self.Self_reflection(self._build_reflection_prompt()))
-
     def reset(self) -> None:
         self.scratchpad: str = ''
         self.finished = False       #sign of captioning success
 
-    def prompt_agent(self) -> str:
-        return format_step(self.Actor(self._build_agent_prompt()))
-    
-    def _build_agent_prompt(self) -> str:
-        return self.agent_prompt.format(
-                            examples = self.cot_examples,
-                            reflections = self.reflections_str,
-                            context = self.context,
-                            question = self.question,
-                            scratchpad = self.scratchpad)
+    def _Actor(self) -> str:
+        return format_step(self.Actor.interleave_inference(input_lists=self._build_agent_prompt(),
+                                                            understanding_output=True,
+                                                            max_think_token_n=1000,
+                                                            do_sample=False,
+                                                            # text_temperature=0.3,
+                                                            )[0])
+    def _Evaluator(self):
+        EVAL_PROMPT="""
+        You are given 6 renderings of a 3D object and a caption that describes it. Please determine whether the caption can accurately describe the object. Your output can only be "CORRECT" or "INCORRECT". 
+        """
 
-    def _build_reflection_prompt(self) -> str:
-        return self.reflect_prompt.format(
-                            examples = self.reflect_examples,
-                            context = self.context,
-                            question = self.question,
-                            scratchpad = self.scratchpad)
+        input_list=self.imgs_list+["The caption:"+self.answer]+[EVAL_PROMPT]
+
+        self.correct=self.Evaluator.interleave_inference(input_lists=input_list,
+                                                        understanding_output=True,
+                                                        max_think_token_n=1000,
+                                                        do_sample=False,
+                                                        # text_temperature=0.3,
+                                                        )[0]
+        self.correct=self.correct.strip().upper()
+        print(f"Object {self.obj_name}:{self.correct}")
+
+    def _Reflection(self) -> str:
+        return format_step(self.Self_reflection.interleave_inference(input_lists=self._build_reflection_prompt(),
+                                                                        understanding_output=True,
+                                                                        max_think_token_n=1000,
+                                                                        do_sample=False,
+                                                                        # text_temperature=0.3,
+                                                                        )[0])
+    
+    def _build_agent_prompt(self) -> List:
+        return [self.agent_prompts[0].format(
+                    examples = self.cot_examples,
+                    reflections = self.reflections_str)]+\
+                self.imgs_list+\
+                [self.agent_prompts[1].format(
+                    prompt = self.prompt,
+                    scratchpad = self.scratchpad)]
+    
+    def _build_reflection_prompt(self) -> List:
+        return [self.reflect_prompts[0].format(examples = self.cot_examples)]+\
+                self.imgs_list+\
+                [self.reflect_prompts[1].format(
+                    prompt = self.prompt,
+                    scratchpad = self.scratchpad)]
  
     def is_finished(self) -> bool:
         return self.finished
@@ -162,10 +200,10 @@ class CoTAgent:
         '''
         return whether the agent gives the right answer
         '''
-        return    
+        if self.correct=="CORRECT":
+            return True
+        return False   
     
-
-
 ### String Stuff ###
 gpt2_enc = tiktoken.encoding_for_model("text-davinci-003")
 
@@ -182,7 +220,7 @@ def parse_action(string):
         return None
 
 def format_step(step: str) -> str:
-    return step.strip('\n').strip().replace('\n', '')
+    return step.strip('\n').strip()
 
 def format_reflections(reflections: List[str],
                         header: str = REFLECTION_HEADER) -> str:
@@ -198,29 +236,11 @@ def format_last_attempt(question: str,
 
 def truncate_scratchpad(scratchpad: str, n_tokens: int = 1600, tokenizer = gpt2_enc) -> str:
     lines = scratchpad.split('\n')
-    observations = filter(lambda x: x.startswith('Observation'), lines)
-    observations_by_tokens = sorted(observations, key=lambda x: len(tokenizer.encode(x)))
-    while len(gpt2_enc.encode('\n'.join(lines))) > n_tokens:
-        largest_observation = observations_by_tokens.pop(-1)
-        ind = lines.index(largest_observation)
-        lines[ind] = largest_observation.split(':')[0] + ': [truncated wikipedia excerpt]'
+    observations = [(i, line) for i, line in enumerate(lines) if line.startswith('Observation')]
+    observations.sort(key=lambda x: len(tokenizer.encode(x[1])), reverse=True)
+    for i, line in observations:
+        if len(tokenizer.encode('\n'.join(lines))) <= n_tokens:
+            break
+        lines[i] = line.split(':')[0] + ': [Content truncated for context window]'
+        
     return '\n'.join(lines)
-
-def normalize_answer(s):
-  def remove_articles(text):
-    return re.sub(r"\b(a|an|the)\b", " ", text)
-  
-  def white_space_fix(text):
-      return " ".join(text.split())
-
-  def remove_punc(text):
-      exclude = set(string.punctuation)
-      return "".join(ch for ch in text if ch not in exclude)
-
-  def lower(text):
-      return text.lower()
-
-  return white_space_fix(remove_articles(remove_punc(lower(s))))
-
-def EM(answer, key) -> bool:
-    return normalize_answer(answer) == normalize_answer(key)

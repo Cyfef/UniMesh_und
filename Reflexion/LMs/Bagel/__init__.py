@@ -147,30 +147,3 @@ BagelSelfReflection=InterleaveInferencer(
     vit_transform=vit_transform, 
     new_token_ids=new_token_ids
 )
-
-#-----------------------Understanding-----------------------#
-
-inference_hyper=dict(
-    max_think_token_n=1000,
-    do_sample=False,
-    # text_temperature=0.3,
-)
-
-image = Image.open('test_images/meme.jpg')
-prompt = "Can someone explain what’s funny about this meme??"
-
-output_dict = inferencer(image=image, text=prompt, understanding_output=True, **inference_hyper)
-print(output_dict['text'])
-
-
-
-
-input_list = [
-    Image.open('1.jpg'),
-    Image.open('2.jpg'),
-    "A man <img><|image_1|></img> and a woman <img><|image_2|></img> are running on the forest."
-]
-
-output_dict = inferencer.interleave_inference(input_lists=input_list, **inference_hyper)
-display(output_dict[0])
-

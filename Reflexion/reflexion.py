@@ -10,7 +10,6 @@ from utils import summarize_trial, log_trial, save_agents
 from prompts import cot_agent_prompt1, cot_agent_prompt2, cot_reflect_agent_prompt1, cot_reflect_agent_prompt2, cot_reflect_prompt1, cot_reflect_prompt2
 from fewshots import COT, COT_REFLECT
 
-
 def Caption_Reflexion(rp:ReflexionParams):
     '''
     Reflexion for 3D object captioning
@@ -25,6 +24,7 @@ def Caption_Reflexion(rp:ReflexionParams):
                        cot_examples=COT,
                        reflect_examples=COT_REFLECT,
 
+                       evaluator_lm=rp.Evaluator
                        ) for obj_name in os.listdir(rp.objs_dir)]
     
     log = ''

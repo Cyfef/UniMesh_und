@@ -13,6 +13,16 @@ import argparse
 import tqdm
 import pickle
 import random
+import tempfile
+
+my_temp_dir = "/data/group/zhaolab/project/UniMesh/UniMesh_und/Diffurank/shap-e/shap_e_tmp"
+os.makedirs(my_temp_dir, exist_ok=True)
+
+# 强制 Python 使用这个路径作为临时文件夹
+os.environ['TMPDIR'] = my_temp_dir
+os.environ['TEMP'] = my_temp_dir
+os.environ['TMP'] = my_temp_dir
+tempfile.tempdir = my_temp_dir
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--uid_path', type = str, default='../example_material/example_object_path.pkl')
@@ -46,9 +56,6 @@ with torch.no_grad():
             latent = xm.encoder.encode_to_bottleneck(batch)
             torch.save(latent.cpu(), os.path.join(target_dir, '%s.pt'%(os.path.basename(file_path).split('.')[0])))
 
-        except:
-            print('Error:', file_path)
+        except Exception as e:
+            print('Error:', e)
             continue
-
-
-

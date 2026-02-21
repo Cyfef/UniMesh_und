@@ -6,7 +6,8 @@ import blobfile as bf
 import numpy as np
 
 import os
-os.environ['BLENDER_PATH'] = r'H:\data\Diffurank\blender-3.4.1-windows-x64\blender.exe'
+#os.environ['BLENDER_PATH'] = r'H:\data\Diffurank\blender-3.4.1-windows-x64\blender.exe'
+os.environ['BLENDER_PATH'] = "../blender-3.4.1-linux-x64/blender"
 
 import torch
 from PIL import Image
@@ -196,6 +197,7 @@ def load_or_create_multiview(
                 **common_kwargs,
             )
         if cache_path is not None:
+            cache_path=os.path.abspath(cache_path)
             bf.copy(tmp_path, cache_path)
         with bf.BlobFile(tmp_path, "rb") as f:
             yield BlenderViewData(f)

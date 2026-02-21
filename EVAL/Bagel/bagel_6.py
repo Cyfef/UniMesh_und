@@ -15,6 +15,24 @@ from modeling.qwen2 import Qwen2Tokenizer
 from modeling.autoencoder import load_ae
 from inferencer import InterleaveInferencer
 
+def diffurank_select(obj_path):
+    '''
+    select 6 imgs based on diffurank scores
+    '''
+    diffu_path = os.path.join(obj_path, "diffurank_scores.pkl")
+    with open(diffu_path, 'rb') as f:
+        diffu_scores = pickle.load(f)     # numpy array
+
+    indexed = list(enumerate(diffu_scores))
+    indexed.sort(key=lambda x: x[1])
+        
+    lowest_six = indexed[:6]
+    indices = [idx for idx, val in lowest_six][::-1] 
+
+    imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices] 
+        
+    return imgs_path
+
 #-----------------------Model Initialization-----------------------#
 
 model_path = "./models/BAGEL-7B-MoT/weights"  # Download from https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT
@@ -164,10 +182,14 @@ for obj_name in os.listdir(objs_dir):
 
     obj_path=os.path.join(objs_dir,obj_name)
 
+    """
     imgs_list=[]
     for i in range(27):
         img_path=os.path.join(obj_path,f"{i:05}.png")
         imgs_list.append(Image.open(img_path))
+    """
+
+    imgs_list=diffurank_select(obj_path)
 
     input_list=imgs_list+[prompt]
 

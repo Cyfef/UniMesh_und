@@ -4,6 +4,25 @@ import os
 from modelscope import Qwen2_5_VLForConditionalGeneration, AutoProcessor
 from qwen_vl_utils import process_vision_info
 
+def diffurank_select(obj_path):
+    '''
+    select 6 imgs based on diffurank scores
+    '''
+    diffu_path = os.path.join(obj_path, "diffurank_scores.pkl")
+    with open(diffu_path, 'rb') as f:
+        diffu_scores = pickle.load(f)     # numpy array
+
+    indexed = list(enumerate(diffu_scores))
+    indexed.sort(key=lambda x: x[1])
+        
+    lowest_six = indexed[:6]
+    indices = [idx for idx, val in lowest_six][::-1] 
+
+    imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices] 
+        
+    return imgs_path
+
+
 # model
 model_path="./models/Qwen2.5-VL-7B-Instruct"
 
@@ -36,10 +55,14 @@ for obj_name in os.listdir(objs_dir):
 
     obj_path=os.path.join(objs_dir,obj_name)
 
+    """
     paths_list = []
     for i in range(27):
         img_path=os.path.join(obj_path,f"{i:05}.png")
         paths_list.append(img_path)
+    """
+    
+    paths_list=diffurank_select(obj_path)
 
     # content
     content_parts = []

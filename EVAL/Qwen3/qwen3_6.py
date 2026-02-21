@@ -16,7 +16,7 @@ model = AutoModelForImageTextToText.from_pretrained(
     "./models/Qwen/Qwen3-VL-8B-Instruct", dtype="auto", device_map="auto"
 )
 
-processor = AutoProcessor.from_pretrained("./models/Qwen/Qwen3-VL-235B-A22B-Instruct")
+processor = AutoProcessor.from_pretrained("./models/Qwen/Qwen3-VL-8B-Instruct")
 
 # 6 imgs run
 CAPTION_PROMPT="""

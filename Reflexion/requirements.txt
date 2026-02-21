@@ -2,10 +2,10 @@
 
 
 # qwen
-
-
-
-
+#transformers==4.51.3 
+transformers>=4.57.0
+accelerate
+qwen-vl-utils
 
 # reflexion
 gym==0.26.2

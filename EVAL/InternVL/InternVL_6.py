@@ -5,6 +5,25 @@ from lmdeploy import pipeline, PytorchEngineConfig
 from lmdeploy.vl import load_image
 from lmdeploy.vl.constants import IMAGE_TOKEN
 
+def diffurank_select(obj_path):
+    '''
+    select 6 imgs based on diffurank scores
+    '''
+    diffu_path = os.path.join(obj_path, "diffurank_scores.pkl")
+    with open(diffu_path, 'rb') as f:
+        diffu_scores = pickle.load(f)     # numpy array
+
+    indexed = list(enumerate(diffu_scores))
+    indexed.sort(key=lambda x: x[1])
+        
+    lowest_six = indexed[:6]
+    indices = [idx for idx, val in lowest_six][::-1] 
+
+    imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices] 
+        
+    return imgs_path
+
+
 # model
 model_path="./models/OpenGVLab/InternVL3_5-4B"
 
@@ -39,10 +58,14 @@ for obj_name in os.listdir(objs_dir):
 
     obj_path=os.path.join(objs_dir,obj_name)
 
+    """
     paths_list = []
     for i in range(27):
         img_path=os.path.join(obj_path,f"{i:05}.png")
         paths_list.append(img_path)
+    """
+    
+    paths_list=diffurank_select(obj_path)
     
     images = [load_image(path) for path in paths_list]
 

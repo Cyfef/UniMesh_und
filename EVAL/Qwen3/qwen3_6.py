@@ -2,6 +2,25 @@ import pickle
 import os
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
+def diffurank_select(obj_path):
+    '''
+    select 6 imgs based on diffurank scores
+    '''
+    diffu_path = os.path.join(obj_path, "diffurank_scores.pkl")
+    with open(diffu_path, 'rb') as f:
+        diffu_scores = pickle.load(f)     # numpy array
+
+    indexed = list(enumerate(diffu_scores))
+    indexed.sort(key=lambda x: x[1])
+        
+    lowest_six = indexed[:6]
+    indices = [idx for idx, val in lowest_six][::-1] 
+
+    imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices] 
+        
+    return imgs_path
+
+
 # caption dict
 captions_dict_path="../../Captions/Qwen3B_6.pkl"
 
@@ -33,10 +52,14 @@ for obj_name in os.listdir(objs_dir):
 
     obj_path=os.path.join(objs_dir,obj_name)
 
+    """
     paths_list = []
     for i in range(27):
         img_path=os.path.join(obj_path,f"{i:05}.png")
         paths_list.append(img_path)
+    """
+    
+    paths_list=diffurank_select(obj_path)
 
     # Messages containing multiple images and a text query
     messages = [

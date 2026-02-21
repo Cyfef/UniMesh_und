@@ -6,7 +6,8 @@ from argparse import ArgumentParser
 from agents import CoTAgent, ReflexionStrategy
 from arguments import ReflexionParams
 from utils import summarize_trial, log_trial, save_agents
-from prompts import cot_agent_prompt, cot_reflect_agent_prompt, cot_reflect_prompt
+
+from prompts import cot_agent_prompt1, cot_agent_prompt2, cot_reflect_agent_prompt1, cot_reflect_agent_prompt2, cot_reflect_prompt1, cot_reflect_prompt2
 from fewshots import COT, COT_REFLECT
 
 
@@ -18,8 +19,9 @@ def Caption_Reflexion(rp:ReflexionParams):
                        obj_path=os.path.join(rp.objs_dir,obj_name),
                        obj_name=obj_name,
 
-                       agent_prompt=cot_agent_prompt if rp.strategy == ReflexionStrategy.NONE else cot_reflect_agent_prompt,
-                       reflect_prompt=cot_reflect_prompt,
+                       agent_prompts=[cot_agent_prompt1, cot_agent_prompt2] if rp.strategy == ReflexionStrategy.NONE else [cot_reflect_agent_prompt1, cot_reflect_agent_prompt2],
+                       reflect_prompts=[cot_reflect_prompt1, cot_reflect_prompt2],
+
                        cot_examples=COT,
                        reflect_examples=COT_REFLECT,
 
@@ -28,7 +30,7 @@ def Caption_Reflexion(rp:ReflexionParams):
     log = ''
 
     for trial in range(1,rp.n+1):
-        for agent in [a for a in agents if not a.is_correct()]:
+        for agent in [a for a in agents if not a.is_finished()]:
             agent.run(reflexion_strategy = rp.strategy)
         log += log_trial(agents, trial)
         correct, incorrect = summarize_trial(agents)
@@ -54,7 +56,7 @@ def Caption_Reflexion(rp:ReflexionParams):
     # save all the captions
     captions_dict={}
     for agent in agents:
-        captions_dict[agent.obj_name]=agent.caption
+        captions_dict[agent.obj_name]=agent.captions_list[-1]
     
     captions_filename=f"{len(agents)}_objects_{timestamp}.pkl"
     captions_path=os.path.join(rp.save_dir,rp.strategy.value,captions_filename)
@@ -69,7 +71,10 @@ def Caption_Reflexion(rp:ReflexionParams):
 if __name__ == "__main__" :
     print("Argument parsing...")
     parser = ArgumentParser(description="Reflexion params")
-    rp=ReflexionParams(parser)      
+    rp=ReflexionParams(parser)
+
+    args = parser.parse_args()
+    rp = rp.extract(args)      
 
     print("Run Captioning...")
     Caption_Reflexion(rp=rp)

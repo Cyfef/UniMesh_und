@@ -42,6 +42,12 @@ os.makedirs(target_dir, exist_ok=True)
 
 with torch.no_grad():  
     for file_path in tqdm.tqdm(uid_list):
+        base_name = os.path.basename(file_path).split('.')[0]
+        save_path = os.path.join(target_dir, f'{base_name}.pt')
+        if os.path.exists(save_path):
+            print(f'{save_path} already exists, skipping.')
+            continue
+        
         print('Begin to extract point clouds:', file_path)
         try:
             batch = load_or_create_multimodal_batch(

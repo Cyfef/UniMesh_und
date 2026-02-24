@@ -23,63 +23,54 @@ def diffurank_select(obj_path):
         
     return imgs_path
 
-
-# model
-model_path="./models/OpenGVLab/InternVL3_5-4B"
-
-# caption dict
-captions_dict_path="../../Captions/InternVL_6.pkl"
-
-with open(captions_dict_path, 'rb') as f:
-    captions_dict = pickle.load(f)
-
-if captions_dict == None:
-    captions_dict={}
-
-# 6 imgs run
-CAPTION_PROMPT="""
-You are given 6 renderings of a 3D object, please generate a concise caption that describes it. Captions should typically begin with an article ("a" or "an"), followed by color(s), shape, and the object type.Include distinctive features introduced by "with" when relevant (e.g., parts, textures, accessories). Use simple, everyday vocabulary and mention colors, materials (wooden, metal, plastic, etc.), and any notable details like wheels, windows, eyes, or decorations. Avoid long or complex sentences. The caption should be a short phrase or a simple sentence that captures the essential visual attributes.
-"""
-
-# image_tokens
-image_tokens = []
-for i in range(6):
-    image_tokens.append(f"Image-{i+1}: {IMAGE_TOKEN}")
-
-prompt=f"{chr(10).join(image_tokens)}"+CAPTION_PROMPT
-
-# objs
-objs_dir=TODO
-
-for obj_name in os.listdir(objs_dir):
+if __name__ == '__main__':   # 必须加这行保护
+    # 模型路径
+    model_path = "./models/OpenGVLab/InternVL3_5-4B"
     
-    if obj_name in list(captions_dict.keys()):
-        continue
-
-    obj_path=os.path.join(objs_dir,obj_name)
-
+    # 初始化 pipeline（只做一次！）
+    pipe = pipeline(
+        model_path,
+        backend_config=PytorchEngineConfig(session_len=32768, tp=1),
+        fix_mistral_regex=True
+    )
+    
+    # 加载或创建 captions 字典
+    captions_dict_path = "../../Captions/InternVL_6.pkl"
+    if os.path.exists(captions_dict_path):
+        with open(captions_dict_path, 'rb') as f:
+            captions_dict = pickle.load(f)
+    else:
+        captions_dict = {}
+    
+    # 图像提示模板（保持不变）
+    CAPTION_PROMPT="""
+    You are given 6 renderings of a 3D object, please generate a concise caption that describes it. Captions should typically begin with an article ("a" or "an"), followed by color(s), shape, and the object type.Include distinctive features introduced by "with" when relevant (e.g., parts, textures, accessories). Use simple, everyday vocabulary and mention colors, materials (wooden, metal, plastic, etc.), and any notable details like wheels, windows, eyes, or decorations. Avoid long or complex sentences. The caption should be a short phrase or a simple sentence that captures the essential visual attributes.
     """
-    paths_list = []
-    for i in range(27):
-        img_path=os.path.join(obj_path,f"{i:05}.png")
-        paths_list.append(img_path)
-    """
+    image_tokens = [f"Image-{i+1}: {IMAGE_TOKEN}" for i in range(6)]
+    prompt = f"{chr(10).join(image_tokens)}\n{CAPTION_PROMPT}"
     
-    paths_list=diffurank_select(obj_path)
+    # 物体目录
+    objs_dir = TODO
     
-    images = [load_image(path) for path in paths_list]
-
-    pipe = pipeline(model_path, backend_config=PytorchEngineConfig(session_len=32768, tp=1))
+    for obj_name in os.listdir(objs_dir):
+        if obj_name in captions_dict:
+            continue
         
-    response = pipe((prompt, images))
-
-    caption = response.text.strip()
-
-    print(f"obj {len(captions_dict)+1}:")
-    print(caption)
-
-    captions_dict[obj_name]=caption
-
-with open(captions_dict_path, 'wb') as F:  
-    pickle.dump(captions_dict, F)  
-    print("Captions saved")  
+        obj_path = os.path.join(objs_dir, obj_name)
+        img_paths = diffurank_select(obj_path)   # 获取6张图片路径
+        
+        # 加载图片
+        images = [load_image(p) for p in img_paths]
+        
+        # 推理（使用已加载的 pipe）
+        response = pipe((prompt, images))
+        caption = response.text.strip()
+        
+        print(f"obj {len(captions_dict)+1}: {caption}")
+        captions_dict[obj_name] = caption
+        
+        # 可选：每处理一个物体保存一次（防止中途中断）
+        with open(captions_dict_path, 'wb') as f:
+            pickle.dump(captions_dict, f)
+    
+    print("所有物体处理完成，最终 captions 已保存。")

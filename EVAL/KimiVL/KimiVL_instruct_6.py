@@ -1,6 +1,5 @@
 import pickle
 import os
-
 from PIL import Image
 from transformers import AutoModelForCausalLM, AutoProcessor
 
@@ -18,101 +17,89 @@ def diffurank_select(obj_path):
     lowest_six = indexed[:6]
     indices = [idx for idx, val in lowest_six][::-1] 
 
-    imgs_path=[os.path.join(obj_path,f"{idx:05}.png") for idx in indices] 
-        
+    imgs_path = [os.path.join(obj_path, f"{idx:05}.png") for idx in indices] 
     return imgs_path
 
-# caption dict
-captions_dict_path="../../Captions/Kimi_instruct_6.pkl"
 
-with open(captions_dict_path, 'rb') as f:
-    captions_dict = pickle.load(f)
+if __name__ == '__main__':          # 保护主程序入口
+    # 加载或初始化 caption 字典
+    captions_dict_path = "../../Captions/Kimi_instruct_6.pkl"
+    if os.path.exists(captions_dict_path):
+        with open(captions_dict_path, 'rb') as f:
+            captions_dict = pickle.load(f)
+    else:
+        captions_dict = {}
 
-if captions_dict == None:
-    captions_dict={}
+    # 加载模型和处理器（只需一次）
+    model_path = "./models/moonshotai/Kimi-VL-A3B-Instruct"
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        torch_dtype="auto",
+        device_map="auto",
+        trust_remote_code=True,
+    )
+    processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
 
-# model
-model_path = "./models/moonshotai/Kimi-VL-A3B-Instruct"
-model = AutoModelForCausalLM.from_pretrained(
-    model_path,
-    torch_dtype="auto",
-    device_map="auto",
-    trust_remote_code=True,
-)
-processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
-
-# 6 imgs run
-CAPTION_PROMPT="""
-You are given 6 renderings of a 3D object, please generate a concise caption that describes it. Captions should typically begin with an article ("a" or "an"), followed by color(s), shape, and the object type.Include distinctive features introduced by "with" when relevant (e.g., parts, textures, accessories). Use simple, everyday vocabulary and mention colors, materials (wooden, metal, plastic, etc.), and any notable details like wheels, windows, eyes, or decorations. Avoid long or complex sentences. The caption should be a short phrase or a simple sentence that captures the essential visual attributes.
-"""
-
-# objs
-objs_dir=TODO
-
-for obj_name in os.listdir(objs_dir):
-    
-    if obj_name in list(captions_dict.keys()):
-        continue
-
-    obj_path=os.path.join(objs_dir,obj_name)
-    
+    # 提示词
+    CAPTION_PROMPT = """
+    You are given 6 renderings of a 3D object, please generate a concise caption that describes it. Captions should typically begin with an article ("a" or "an"), followed by color(s), shape, and the object type.Include distinctive features introduced by "with" when relevant (e.g., parts, textures, accessories). Use simple, everyday vocabulary and mention colors, materials (wooden, metal, plastic, etc.), and any notable details like wheels, windows, eyes, or decorations. Avoid long or complex sentences. The caption should be a short phrase or a simple sentence that captures the essential visual attributes.
     """
-    paths_list = []
-    for i in range(27):
-        img_path=os.path.join(obj_path,f"{i:05}.png")
-        paths_list.append(img_path)
-    """
-    
-    paths_list=diffurank_select(obj_path)
 
-    images = [Image.open(p) for p in paths_list]          # 加载为 PIL Image 列表
+    # 物体根目录
+    objs_dir = "/data/group/zhaolab/project/UniMesh/lab/UniMesh_und/glbs_4"
 
-    # 构造多图对话消息：content 中包含多个 image 类型元素
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image", "image": paths_list[0]},  
-                {"type": "image", "image": paths_list[1]},  
-                {"type": "image", "image": paths_list[2]},  
-                {"type": "image", "image": paths_list[3]},  
-                {"type": "image", "image": paths_list[4]},  
-                {"type": "image", "image": paths_list[5]},   
-                {"type": "text", "text": CAPTION_PROMPT}
-            ]
-        }
-    ]
+    for obj_name in os.listdir(objs_dir):
+        if obj_name in captions_dict:
+            continue
 
-    # 应用对话模板，生成包含图像占位符的文本
-    text = processor.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
+        obj_path = os.path.join(objs_dir, obj_name)
+        paths_list = diffurank_select(obj_path)
 
-    # 将图片列表和文本一起传给 processor
-    inputs = processor(
-        images=images,           # 这里传入图片列表
-        text=text,
-        return_tensors="pt",
-        padding=True,
-        truncation=True
-    ).to(model.device)
+        # 加载图片为 PIL Image 对象
+        images = [Image.open(p) for p in paths_list]
 
-    # 生成回答
-    generated_ids = model.generate(**inputs, max_new_tokens=512)
-    generated_ids_trimmed = [
-        out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-    ]
-    response = processor.batch_decode(
-        generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-    )[0]
-    print(response)
+        # 构造对话消息（注意：这里 "image" 字段只需占位符，实际图片通过 images 参数传入）
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},   # 仅用于占位，不需要路径
+                    {"type": "image"},
+                    {"type": "image"},
+                    {"type": "image"},
+                    {"type": "image"},
+                    {"type": "image"},
+                    {"type": "text", "text": CAPTION_PROMPT}
+                ]
+            }
+        ]
 
-    caption = response
+        # 应用对话模板，得到包含特殊占位符的文本
+        text = processor.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
 
-    print(f"obj {len(captions_dict)+1}:")
-    print(caption)
+        # 将图片列表和文本一起传入 processor
+        inputs = processor(
+            images=images,               # 传入 PIL Image 列表
+            text=text,
+            return_tensors="pt",
+            padding=True,
+            truncation=True
+        ).to(model.device)
 
-    captions_dict[obj_name]=caption
+        # 生成回答
+        generated_ids = model.generate(**inputs, max_new_tokens=512)
+        generated_ids_trimmed = [
+            out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+        ]
+        response = processor.batch_decode(
+            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )[0]
 
-with open(captions_dict_path, 'wb') as F:  
-    pickle.dump(captions_dict, F)  
-    print("Captions saved")  
+        caption = response.strip()
+        print(f"obj {len(captions_dict)+1}: {caption}")
+        captions_dict[obj_name] = caption
 
+        # 每处理一个物体立即保存，防止中断丢失
+        with open(captions_dict_path, 'wb') as f:
+            pickle.dump(captions_dict, f)
+            print("Captions saved")

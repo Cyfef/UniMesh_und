@@ -1,6 +1,8 @@
 import os
 import torch
 import random
+import pickle
+import sys
 import numpy as np
 
 from PIL import Image
@@ -15,6 +17,23 @@ from modeling.qwen2 import Qwen2Tokenizer
 from modeling.autoencoder import load_ae
 from inferencer import InterleaveInferencer
 
+if not hasattr(np, '_core'):
+    # 如果环境是 1.x，但数据需要 2.0 的结构
+    from numpy.core import multiarray
+    # 模拟新版的模块结构
+    class MockCore:
+        pass
+    _mock_core = MockCore()
+    _mock_core._reconstruct = multiarray._reconstruct
+    _mock_core.multiarray = multiarray
+    
+    # 注入到全局模块，让 pickle 能找到 numpy._core._reconstruct
+    sys.modules['numpy._core'] = _mock_core
+    sys.modules['numpy._core.multiarray'] = multiarray
+
+#if not hasattr(np, '_core'):
+ #   sys.modules['numpy._core'] = np.core
+
 def diffurank_select(obj_path):
     '''
     select 6 imgs based on diffurank scores
@@ -22,6 +41,8 @@ def diffurank_select(obj_path):
     diffu_path = os.path.join(obj_path, "diffurank_scores.pkl")
     with open(diffu_path, 'rb') as f:
         diffu_scores = pickle.load(f)     # numpy array
+    #diffu_scores = np.load(diffu_path, allow_pickle=True)
+    
 
     indexed = list(enumerate(diffu_scores))
     indexed.sort(key=lambda x: x[1])
@@ -35,7 +56,7 @@ def diffurank_select(obj_path):
 
 #-----------------------Model Initialization-----------------------#
 
-model_path = "./models/BAGEL-7B-MoT/weights"  # Download from https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT
+model_path = "./models/ByteDance-Seed/BAGEL-7B-MoT"  # Download from https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT
 
 # LLM config preparing
 llm_config = Qwen2Config.from_json_file(os.path.join(model_path, "llm_config.json"))
@@ -80,7 +101,7 @@ vit_transform = ImageTransform(980, 224, 14)
 
 #-----------------------Model Loading and Multi GPU Infernece Preparing-----------------------#
 
-max_mem_per_gpu = "40GiB"  # Modify it according to your GPU setting. On an A100, 80 GiB is sufficient to load on a single GPU.
+max_mem_per_gpu = "80GiB"  # Modify it according to your GPU setting. On an A100, 80 GiB is sufficient to load on a single GPU.
 
 device_map = infer_auto_device_map(
     model,
@@ -159,16 +180,29 @@ inference_hyper=dict(
 # caption dict
 import pickle
 
-captions_dict_path="../../Captions/Bagel_28.pkl"
+captions_dict_path="../../Captions/Bagel_6.pkl"
 
 # 6 imgs run
+#CAPTION_PROMPT="""
+#You are given 6 renderings of a 3D object, please generate a concise caption that describes it. Captions should typically begin with an article ("a" or "an"), followed by color(s), shape, and the object type.Include distinctive features introduced by "with" when relevant (e.g., parts, textures, accessories). Use simple, everyday vocabulary and mention colors, materials (wooden, metal, plastic, etc.), and any notable details like wheels, windows, eyes, or decorations. Avoid long or complex sentences. The caption should be a short phrase or a simple sentence that captures the essential visual attributes.
+#"""
+
 CAPTION_PROMPT="""
-You are given 6 renderings of a 3D object, please generate a concise caption that describes it. Captions should typically begin with an article ("a" or "an"), followed by color(s), shape, and the object type.Include distinctive features introduced by "with" when relevant (e.g., parts, textures, accessories). Use simple, everyday vocabulary and mention colors, materials (wooden, metal, plastic, etc.), and any notable details like wheels, windows, eyes, or decorations. Avoid long or complex sentences. The caption should be a short phrase or a simple sentence that captures the essential visual attributes.
+You are given 6 rendered images of the same 3D object from different viewpoints.
+
+Please write one short English caption that best describes the 3D object shown in these images.
+
+Follow these rules:
+1. Write **only one simple sentence**.
+2. Begin with “a” or “an”.
+3. Mention the **main object category** (e.g., airplane, car, person, animal, chair, etc.).
+4. Include **dominant colors** and optionally **materials or simple attributes** (e.g., standing, flying, sitting).
+5. Be concise and factual — do not use complex phrases or subjective language.
 """
 
 prompt="<img><|image_1|></img><img><|image_2|></img><img><|image_3|></img><img><|image_4|></img><img><|image_5|></img><img><|image_6|></img>"+CAPTION_PROMPT
 
-objs_dir=TODO
+objs_dir="/data/group/zhaolab/project/UniMesh/lab/UniMesh_und/data/cap"
 
 for obj_name in os.listdir(objs_dir):
     with open(captions_dict_path, 'rb') as f:

@@ -1,3 +1,3 @@
 # Log
 
-- save the log and all agent severy time running the reflexion
+- save the log every time running the reflexion

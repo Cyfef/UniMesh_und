@@ -11,7 +11,7 @@ from torch.nn.attention.flex_attention import create_block_mask
 from transformers.configuration_utils import PretrainedConfig
 from transformers.modeling_utils import PreTrainedModel
 
-from data.data_utils import (
+from LMs.Bagel.data.data_utils import (
     create_sparse_mask, 
     get_flattened_position_ids_extrapolate, 
     get_flattened_position_ids_interpolate,
@@ -19,7 +19,7 @@ from data.data_utils import (
 )
 from .qwen2_navit import NaiveCache
 from .modeling_utils import MLPconnector, TimestepEmbedder, PositionEmbedding
-from modeling.cache_utils.taylorseer import cache_init
+from LMs.Bagel.modeling.cache_utils.taylorseer import cache_init
 
 from tqdm import tqdm
 

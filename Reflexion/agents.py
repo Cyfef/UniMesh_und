@@ -1,11 +1,13 @@
 import re,os
 import tiktoken
 import pickle
+import sys
+import numpy as np
 
 from typing import List
 from enum import Enum
 from PIL import Image
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 from prompts import REFLECTION_HEADER, LAST_TRIAL_HEADER, REFLECTION_AFTER_LAST_TRIAL_HEADER
 from prompts import cot_reflect_agent_prompt1, cot_reflect_agent_prompt2, cot_reflect_prompt1, cot_reflect_prompt2
@@ -13,7 +15,18 @@ from fewshots import COT, COT_REFLECT
 
 from LMs.Bagel import BagelPredictor
 from LMs.Qwen2_5 import Qwen2_5Predictor
-from LMs.Qwen3 import Qwen3Predictor
+#from LMs.Qwen3 import Qwen3Predictor
+
+if not hasattr(np, '_core'):
+    from numpy.core import multiarray
+    class MockCore:
+        pass
+    _mock_core = MockCore()
+    _mock_core._reconstruct = multiarray._reconstruct
+    _mock_core.multiarray = multiarray
+
+    sys.modules['numpy._core'] = _mock_core
+    sys.modules['numpy._core.multiarray'] = multiarray
 
 class ReflexionStrategy(Enum):
     """
@@ -39,7 +52,7 @@ class EvaluatorModel(Enum):
 
 bagel_model=BagelPredictor()
 qwen2_5model=Qwen2_5Predictor()
-qwen3model=Qwen3Predictor()
+#qwen3model=Qwen3Predictor()
 
 class CoTAgent:
     '''
@@ -73,12 +86,12 @@ class CoTAgent:
         self.Self_reflection = bagel_model     #Self-reflection
         self.evaluator_lm=evaluator_lm
 
-        if self.evaluator_lm=='Bagel':
+        if self.evaluator_lm.value=='Bagel':
             self.Evaluator = bagel_model                    #Evaluator
-        elif self.evaluator_lm=='Qwen2.5-VL-3B':
+        elif self.evaluator_lm.value=='Qwen2.5-VL-3B':
             self.Evaluator = qwen2_5model
-        elif self.evaluator_lm=='Qwen3-VL-8B':
-            self.Evaluator = qwen3model
+        #elif self.evaluator_lm=='Qwen3-VL-8B':
+         #   self.Evaluator = qwen3model
             
         self.reflections = []
         self.reflections_str = ''
@@ -126,11 +139,11 @@ class CoTAgent:
         self.scratchpad += f'\nAction:'
         action = self._Actor()
         self.scratchpad += ' ' + action
-        action_type, argument = parse_action(action)
+        argument = parse_action(action)
         print(self.scratchpad.split('\n')[-1])  
 
         self.scratchpad += f'\nObservation: '
-        if action_type == 'Finish':
+        if argument is not None:
             self.answer = argument
             print(f"Object {self.obj_name}: {self.answer}")
             self.captions_list.append(self.answer)
@@ -141,8 +154,6 @@ class CoTAgent:
                 self.scratchpad += 'Answer is INCORRECT'
             self.finished = True
             return
-        else:
-            print('Invalid action type, please try again.')
     
     def reflect(self,strategy: ReflexionStrategy) -> None:
         '''
@@ -175,9 +186,9 @@ class CoTAgent:
         You are given 6 renderings of a 3D object and a caption that describes it. Please determine whether the caption can accurately describe the object. Your output can only be "CORRECT" or "INCORRECT". 
         """
 
-        if self.evaluator_lm=='Bagel':
+        if self.evaluator_lm.value=='Bagel':
             messages=self.imgs_list+["The caption:"+self.answer]+[EVAL_PROMPT]                    
-        elif self.evaluator_lm=='Qwen2.5-VL-3B' or self.evaluator_lm=='Qwen3-VL-8B':
+        elif self.evaluator_lm.value=='Qwen2.5-VL-3B' :#or self.evaluator_lm=='Qwen3-VL-8B':
             imgs=[{"type": "image", "image": f"file://{img_path}"} for img_path in self.imgs_path]
             text=[{"type": "text", "text": EVAL_PROMPT}]
             messages=[
@@ -225,16 +236,8 @@ class CoTAgent:
 gpt2_enc = tiktoken.encoding_for_model("text-davinci-003")
 
 def parse_action(string):
-    pattern = r'^(\w+)\[(.+)\]$'
-    match = re.match(pattern, string)
-    
-    if match:
-        action_type = match.group(1)
-        argument = match.group(2)
-        return action_type, argument
-    
-    else:
-        return None
+    result = string.split(']', 1)[-1].strip()
+    return result
 
 def format_step(step: str) -> str:
     return step.strip('\n').strip()

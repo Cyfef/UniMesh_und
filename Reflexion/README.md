@@ -28,3 +28,9 @@ pip install https://github.com/kingbri1/flash-attention/releases/download/v2.7.4
 
 
 多图 issue #83  #58 #178
+
+
+
+pip install tiktoken==0.4.0
+pip install langchain==0.0.162
+pip install qwen_vl_utils

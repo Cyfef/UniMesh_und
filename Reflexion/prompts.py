@@ -1,4 +1,4 @@
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 COT_INSTRUCTION1 = """Solve a 3D object captioning task by having a Thought, then Finish with your answer. Thought can reason about the current situation. Finish[answer] returns the answer and finishes the task. You will be given 6 rendered images of a 3D object, which you should use to caption the 3D object.
 Here are some examples:

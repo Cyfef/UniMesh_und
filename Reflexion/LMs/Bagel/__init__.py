@@ -6,14 +6,14 @@ import numpy as np
 from PIL import Image
 from accelerate import infer_auto_device_map, load_checkpoint_and_dispatch, init_empty_weights
 
-from data.transforms import ImageTransform
-from data.data_utils import add_special_tokens
-from modeling.bagel import (
+from .data.transforms import ImageTransform
+from .data.data_utils import add_special_tokens
+from .modeling.bagel import (
     BagelConfig, Bagel, Qwen2Config, Qwen2ForCausalLM, SiglipVisionConfig, SiglipVisionModel
 )
-from modeling.qwen2 import Qwen2Tokenizer
-from modeling.autoencoder import load_ae
-from inferencer import InterleaveInferencer
+from .modeling.qwen2 import Qwen2Tokenizer
+from .modeling.autoencoder import load_ae
+from .inferencer import InterleaveInferencer
 
 seed = 42
 random.seed(seed)
@@ -25,35 +25,6 @@ if torch.cuda.is_available():
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-
-BagelActor=InterleaveInferencer(
-    model=model, 
-    vae_model=vae_model, 
-    tokenizer=tokenizer, 
-    vae_transform=vae_transform, 
-    vit_transform=vit_transform, 
-    new_token_ids=new_token_ids
-)
-
-BagelEvaluator=InterleaveInferencer(
-    model=model, 
-    vae_model=vae_model, 
-    tokenizer=tokenizer, 
-    vae_transform=vae_transform, 
-    vit_transform=vit_transform, 
-    new_token_ids=new_token_ids
-)
-
-BagelSelfReflection=InterleaveInferencer(
-    model=model, 
-    vae_model=vae_model, 
-    tokenizer=tokenizer, 
-    vae_transform=vae_transform, 
-    vit_transform=vit_transform, 
-    new_token_ids=new_token_ids
-)
-
-
 class BagelPredictor:
     _instance = None
     
@@ -63,7 +34,7 @@ class BagelPredictor:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, model_path="./models/BAGEL-7B-MoT/weights"):
+    def __init__(self, model_path="/data/group/zhaolab/project/UniMesh/lab/UniMesh_und/EVAL/Bagel/models/ByteDance-Seed/BAGEL-7B-MoT"):
         if self._initialized: return
         #-----------------------Model Initialization-----------------------#
 

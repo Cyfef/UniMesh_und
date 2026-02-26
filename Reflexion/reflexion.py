@@ -5,7 +5,7 @@ import pickle
 from argparse import ArgumentParser
 from agents import CoTAgent, ReflexionStrategy
 from arguments import ReflexionParams
-from utils import summarize_trial, log_trial, save_agents
+from utils import summarize_trial, log_trial
 
 from prompts import cot_agent_prompt1, cot_agent_prompt2, cot_reflect_agent_prompt1, cot_reflect_agent_prompt2, cot_reflect_prompt1, cot_reflect_prompt2
 from fewshots import COT, COT_REFLECT
@@ -41,17 +41,11 @@ def Caption_Reflexion(rp:ReflexionParams):
     
     log_filename = f"{len(agents)}_objects_{rp.n}_trials_{timestamp}.txt"
     log_path = os.path.join('./Log', rp.strategy.value, log_filename)
-
-    agents_folder = f"{len(agents)}_agents_{timestamp}"
-    agents_path = os.path.join('./Log', rp.strategy.value, agents_folder)
-
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
     with open(log_path, 'w') as f:
         f.write(log)
     print("Logs saved")
-    save_agents(agents, agents_path)
-    print("Agents saved")
 
     # save all the captions
     captions_dict={}

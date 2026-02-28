@@ -1,0 +1,1 @@
+{"backend": "CYCLES", "light_mode": "uniform", "fast_mode": true, "extract_material": true, "format_version": 6, "channels": ["R", "G", "B", "A", "D", "MatAlpha"], "scale": 0.5}
